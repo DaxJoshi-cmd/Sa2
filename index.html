@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sage Spark | Curated Knowledge. Sparked Minds.</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Playfair+Display:wght@700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #A41C30; --accent: #C9A84C; --dark: #1c1a18; --bg: #faf9f7;
+            --white: #ffffff; --gray-light: #f0eeeb; --gray-med: #888;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* Existing Styles[cite: 2] */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'EB Garamond', serif; background-color: var(--bg); color: var(--dark); line-height: 1.6; }
+        h1, h2, h3 { font-family: 'Playfair Display', serif; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .flex { display: flex; align-items: center; }
+        .justify-between { justify-content: space-between; }
+        header { background: var(--white); height: 70px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .hero { background: linear-gradient(135deg, #1c1a18 0%, #3d0a12 100%); color: var(--white); padding: 60px 0; text-align: center; border-bottom: 5px solid var(--accent); }
+        
+        /* Auth Styles */
+        .auth-container { background: white; padding: 30px; border-radius: 8px; max-width: 400px; margin: 20px auto; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; }
+        
+        /* Admin Panel Styles */
+        #superAdminPanel { background: #fff; margin-top: 30px; padding: 30px; border-radius: 8px; display: none; border-top: 4px solid var(--primary); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        .role-btn { padding: 5px 10px; font-size: 0.8rem; margin-right: 5px; cursor: pointer; border: 1px solid var(--primary); background: transparent; color: var(--primary); }
+        .role-btn:hover { background: var(--primary); color: white; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container flex justify-between h-100" style="height: 70px;">
+            <span style="font-family: 'Playfair Display'; font-size: 1.5rem; color: var(--primary);">Sage Spark</span>
+            <div id="userInfo"></div>
+        </div>
+    </header>
+
+    <section class="hero">
+        <h1>Sage Spark Publications</h1>
+        <p>Curated Knowledge. Sparked Minds.</p>
+    </section>
+
+    <!-- AUTH SECTION -->
+    <div class="container">
+        <div id="authBox" class="auth-container">
+            <div id="loginForm">
+                <h3>Login</h3>
+                <input type="text" id="logUser" placeholder="Username or Email">
+                <input type="password" id="logPass" placeholder="Password">
+                <button onclick="handleLogin()">Sign In</button>
+                <p style="text-align:center; margin-top:15px; font-size:0.9rem;">
+                    New here? <a href="javascript:void(0)" onclick="toggleAuth(true)">Create Account</a>
+                </p>
+            </div>
+
+            <div id="signupForm" style="display:none;">
+                <h3>Register</h3>
+                <input type="text" id="regUser" placeholder="Choose Username">
+                <input type="email" id="regEmail" placeholder="Email Address">
+                <input type="password" id="regPass" placeholder="Create Password">
+                <button onclick="handleSignUp()">Register</button>
+                <p style="text-align:center; margin-top:15px; font-size:0.9rem;">
+                    Already have an account? <a href="javascript:void(0)" onclick="toggleAuth(false)">Login</a>
+                </p>
+            </div>
+        </div>
+
+        <!-- SUPER ADMIN PANEL -->
+        <section id="superAdminPanel">
+            <h2 style="color: var(--primary);">User Management Dashboard</h2>
+            <p>Promote users to Admin/Editor roles based on their registered usernames.</p>
+            <div id="userTableContainer"></div>
+        </section>
+    </div>
+
+    <!-- Firebase Integration -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-analytics.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCmPO5X2OepD5Et6TBZHoP5zYFEiCXplSU",
+            authDomain: "sage-spark-b7cbf.firebaseapp.com",
+            projectId: "sage-spark-b7cbf",
+            storageBucket: "sage-spark-b7cbf.firebasestorage.app",
+            messagingSenderId: "484791494612",
+            appId: "1:484791494612:web:b42b0819c713476193d841"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const analytics = getAnalytics(app);
+
+        // --- STATIC ADMIN CREDENTIALS ---
+        const STATIC_ADMIN = { user: "Sage_Spark", pass: "Sage@2026" };
+
+        // --- AUTH TOGGLE ---
+        window.toggleAuth = (showSignup) => {
+            document.getElementById('loginForm').style.display = showSignup ? 'none' : 'block';
+            document.getElementById('signupForm').style.display = showSignup ? 'block' : 'none';
+        };
+
+        // --- REGISTER ---
+        window.handleSignUp = async () => {
+            const email = document.getElementById('regEmail').value;
+            const pass = document.getElementById('regPass').value;
+            const username = document.getElementById('regUser').value;
+
+            try {
+                const cred = await createUserWithEmailAndPassword(auth, email, pass);
+                await setDoc(doc(db, "users", cred.user.uid), {
+                    username: username,
+                    email: email,
+                    role: "viewer", // Default role
+                    uid: cred.user.uid
+                });
+                alert("Account created! Please log in.");
+                toggleAuth(false);
+            } catch (e) { alert(e.message); }
+        };
+
+        // --- LOGIN WITH STATIC OVERRIDE ---
+        window.handleLogin = async () => {
+            const userInp = document.getElementById('logUser').value;
+            const passInp = document.getElementById('logPass').value;
+
+            // Check for Static Admin first
+            if (userInp === STATIC_ADMIN.user && passInp === STATIC_ADMIN.pass) {
+                showAdminDashboard(true);
+                return;
+            }
+
+            try {
+                // If not static admin, use Firebase Auth[cite: 1]
+                const cred = await signInWithEmailAndPassword(auth, userInp, passInp);
+                const userDoc = await getDoc(doc(db, "users", cred.user.uid));
+                
+                if (userDoc.exists() && userDoc.data().role === "superadmin") {
+                    showAdminDashboard(false);
+                } else {
+                    alert("Logged in as: " + userDoc.data().username);
+                    document.getElementById('authBox').style.display = 'none';
+                }
+            } catch (e) { alert("Login failed. Check credentials."); }
+        };
+
+        function showAdminDashboard(isStatic) {
+            document.getElementById('authBox').style.display = 'none';
+            document.getElementById('superAdminPanel').style.display = 'block';
+            document.getElementById('userInfo').innerHTML = `<span>Logged as: <b>${isStatic ? 'Sage_Spark' : 'Admin'}</b></span>`;
+            loadUserList();
+        }
+
+        // --- LOAD USER LIST FOR ADMIN[cite: 1] ---
+        async function loadUserList() {
+            const snap = await getDocs(collection(db, "users"));
+            const container = document.getElementById('userTableContainer');
+            
+            let html = `<table><tr><th>Username</th><th>Email</th><th>Role</th><th>Action</th></tr>`;
+            snap.forEach(userDoc => {
+                const u = userDoc.data();
+                html += `
+                    <tr>
+                        <td>${u.username}</td>
+                        <td>${u.email}</td>
+                        <td><b>${u.role}</b></td>
+                        <td>
+                            <button class="role-btn" onclick="updateRole('${u.uid}', 'admin')">Admin</button>
+                            <button class="role-btn" onclick="updateRole('${u.uid}', 'editor')">Editor</button>
+                        </td>
+                    </tr>`;
+            });
+            container.innerHTML = html + `</table>`;
+        }
+
+        window.updateRole = async (uid, newRole) => {
+            await updateDoc(doc(db, "users", uid), { role: newRole });
+            alert("Role updated to " + newRole);
+            loadUserList();
+        };
+    </script>
+</body>
+</html>
